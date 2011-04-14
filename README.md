@@ -1,7 +1,7 @@
-Pinba HTTP Daemon
-=================
+Pinba HTTP Gateway
+==================
 
-Pinba-HTTPD is a HTTP interface for [Pinba](http://pinba.org/). It allows to forge Pinba timers from simple HTTP queries with optional tags. This is useful to time things on the client (javascript, flash) in the same backend as for you backend code.
+Pinba-HTTP is a HTTP interface for [Pinba](http://pinba.org/). It allows to forge Pinba timers from simple HTTP queries with optional tags. This is useful to time things on the client (javascript, flash) in the same backend as for you backend code.
 
 This is a bit of a hack as Pinba isn't really meant to do that, but who cares? :)
 
