@@ -18,7 +18,7 @@ This will create a Pinba request, with `script_name` set to `mycounter`. You can
 
 You can add a time value to your counter by adding the time in seconds (float) to the request:
 
-    http://hostname/track/mytimer;0.231
+    http://hostname/track/mytimer?t=0.231
 
 The time value will be set as the `request_time` value. You can then get the average time for this timer using a query like this:
 
@@ -26,7 +26,7 @@ The time value will be set as the `request_time` value. You can then get the ave
 
 Finaly, you can add tags to your timer by adding a query string to your request. If at least one tag is present, a single sub-timer will be created with the provided tags:
 
-    http://hostname/track/mytimer;0.231?tag1=value1&tag2=value2
+    http://hostname/track/mytimer?t=0.231&tag1=value1&tag2=value2
 
 You can then create corresponding report table for the tags you want to query.
 

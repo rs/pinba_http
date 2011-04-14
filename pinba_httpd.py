@@ -17,8 +17,14 @@ udpsock = socket(AF_INET, SOCK_DGRAM)
 hostname = gethostname()
 
 @app.route('/track/<tracker>')
-@app.route('/track/<tracker>;<float:timer>')
-def track(tracker, timer=0.0):
+def track(tracker):
+    timer = 0.0
+    if 't' in request.args:
+        try:
+            timer = float(request.args['t'])
+        except ValueError:
+            pass
+
     # Create a default "empty" Pinba request message
     msg = pinba_pb2.Request()
     msg.hostname = hostname
@@ -32,7 +38,7 @@ def track(tracker, timer=0.0):
     msg.ru_stime = 0.0
     msg.status = 200
 
-    if request.args:
+    if (not timer and request.args) or (timer and len(request.args) > 1):
         # Add a single timer
         msg.timer_hit_count.append(1)
         msg.timer_value.append(timer)
@@ -41,6 +47,7 @@ def track(tracker, timer=0.0):
         # Encode associated tags
         dictionary = [] # contains mapping of tags name or value => uniq id
         for name, value in request.args.items():
+            if name is 't': continue # t is reserved for timer value
             value = str(value)
             if name not in dictionary:
                 dictionary.append(name)
