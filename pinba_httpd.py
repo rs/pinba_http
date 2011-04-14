@@ -6,7 +6,7 @@ from sys import argv
 import pinba_pb2
 
 DEBUG = True
-PINBA_HOST = argv[1] if len(argv) > 1 else '127.0.0.1'
+PINBA_HOST = '127.0.0.1'
 PINBA_PORT = 30002
 
 app = Flask(__name__)
@@ -53,7 +53,7 @@ def track(tracker, timer=0.0):
         msg.dictionary.extend(dictionary);
 
     # Send message to Pinba server
-    udpsock.sendto(msg.SerializeToString(), (PINBA_HOST, PINBA_PORT))
+    udpsock.sendto(msg.SerializeToString(), (app.config['PINBA_HOST'], app.config['PINBA_PORT']))
 
     return ''
 
