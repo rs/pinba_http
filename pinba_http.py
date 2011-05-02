@@ -9,6 +9,7 @@ VERSION = 1.0
 PINBA_HOST = '127.0.0.1'
 PINBA_PORT = 30002
 PATH_PREFIX = '/track/'
+TIMER_MAX = 10*60
 
 udpsock = socket(AF_INET, SOCK_DGRAM)
 hostname = gethostname()
@@ -21,11 +22,14 @@ def app(environ, start_response):
 
     tracker = environ['PATH_INFO'][prefix_size:]
     tags = parse_qs(environ['QUERY_STRING'])
-    timer = 0.0
     try:
         timer = float(tags.pop('t')[0])
-    except (ValueError, KeyError):
-        pass
+        if timer < 0 or timer > TIMER_MAX: raise ValueError()
+    except KeyError:
+        timer = 0.0
+    except ValueError:
+        start_response('400 Invalid Timer', [('Content-Length', 0)])
+        return ['']
 
     # Create a default "empty" Pinba request message
     msg = pinba_pb2.Request()
