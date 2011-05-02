@@ -1,34 +1,36 @@
 #!/usr/bin/env python
 
-from flask import Flask, request
+from cgi import parse_qs
 from socket import socket, gethostname, AF_INET, SOCK_DGRAM
 from sys import argv
 import pinba_pb2
 
-DEBUG = True
+VERSION = 1.0
 PINBA_HOST = '127.0.0.1'
 PINBA_PORT = 30002
-
-app = Flask(__name__)
-app.config.from_object(__name__)
-app.config.from_envvar('PINBA_HTTPD_SETTINGS', silent=True)
+PATH_PREFIX = '/track/'
 
 udpsock = socket(AF_INET, SOCK_DGRAM)
 hostname = gethostname()
+prefix_size = len(PATH_PREFIX)
 
-@app.route('/track/<tracker>')
-def track(tracker):
+def app(environ, start_response):
+    if not environ['PATH_INFO'].startswith(PATH_PREFIX):
+        start_response('404 Not Found', [('Content-Length', 0)])
+        return ['']
+
+    tracker = environ['PATH_INFO'][prefix_size:]
+    tags = parse_qs(environ['QUERY_STRING'])
     timer = 0.0
-    if 't' in request.args:
-        try:
-            timer = float(request.args['t'])
-        except ValueError:
-            pass
+    try:
+        timer = float(tags.pop('t')[0])
+    except (ValueError, KeyError):
+        pass
 
     # Create a default "empty" Pinba request message
     msg = pinba_pb2.Request()
     msg.hostname = hostname
-    msg.server_name = request.environ['HTTP_HOST']
+    msg.server_name = environ['HTTP_HOST']
     msg.script_name = tracker
     msg.request_count = 1
     msg.document_size = 0
@@ -38,36 +40,33 @@ def track(tracker):
     msg.ru_stime = 0.0
     msg.status = 200
 
-    if (not timer and request.args) or (timer and len(request.args) > 1):
+    if tags:
         # Add a single timer
         msg.timer_hit_count.append(1)
         msg.timer_value.append(timer)
-        msg.timer_tag_count.append(len(request.args))
 
         # Encode associated tags
+        tag_count = 0
         dictionary = [] # contains mapping of tags name or value => uniq id
-        for name, value in request.args.items():
-            if name is 't': continue # t is reserved for timer value
-            value = str(value)
+        for name, values in tags.items():
             if name not in dictionary:
                 dictionary.append(name)
-            if value not in dictionary:
-                dictionary.append(value)
-            msg.timer_tag_name.append(dictionary.index(name))
-            msg.timer_tag_value.append(dictionary.index(value))
+            for value in values:
+                value = str(value)
+                if value not in dictionary:
+                    dictionary.append(value)
+                msg.timer_tag_name.append(dictionary.index(name))
+                msg.timer_tag_value.append(dictionary.index(value))
+                tag_count += 1
+
+        # Number of tags
+        msg.timer_tag_count.append(tag_count)
 
         # Global tags dictionary
         msg.dictionary.extend(dictionary);
 
     # Send message to Pinba server
-    udpsock.sendto(msg.SerializeToString(), (app.config['PINBA_HOST'], app.config['PINBA_PORT']))
+    udpsock.sendto(msg.SerializeToString(), (PINBA_HOST, PINBA_PORT))
 
-    return ''
-
-@app.after_request
-def after_request(response):
-    response.headers['Server'] = 'Pinba-HTTPD/1.0';
-    return response
-
-if __name__ == '__main__':
-    app.run()
+    start_response('200 OK', [('Content-Length', 0)])
+    return ['']

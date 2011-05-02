@@ -33,6 +33,4 @@ You can then create corresponding report table for the tags you want to query.
 Installation
 ------------
 
-This project requires [Flask](http://flask.pocoo.org/) micro-framework and the [Protocol Buffer Python library](http://code.google.com/apis/protocolbuffers/docs/pythontutorial.html).
-
-Follow the [Flask deployement options](http://flask.pocoo.org/docs/deploying/) corresponding to the WSGI server you want to use. Don't forget to set the `PINBA_HOST` and `PINBA_PORT` configuration variables to your Pinba server.
+This project requires the [Protocol Buffer Python library](http://code.google.com/apis/protocolbuffers/docs/pythontutorial.html).
