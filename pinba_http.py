@@ -8,12 +8,13 @@ import pinba_pb2
 VERSION = 1.0
 PINBA_HOST = '127.0.0.1'
 PINBA_PORT = 30002
-PATH_PREFIX = '/track/'
 TIMER_MAX = 10*60
 
 udpsock = socket(AF_INET, SOCK_DGRAM)
 hostname = gethostname()
-prefix_size = len(PATH_PREFIX)
+
+class InvalidTimer(Exception):
+    pass
 
 def pinba(server_name, tracker, timer, tags):
     """
@@ -64,12 +65,14 @@ def pinba(server_name, tracker, timer, tags):
     # Send message to Pinba server
     udpsock.sendto(msg.SerializeToString(), (PINBA_HOST, PINBA_PORT))
 
-def app(environ, start_response):
-    if not environ['PATH_INFO'].startswith(PATH_PREFIX):
-        start_response('404 Not Found', [('Content-Length', 0)])
-        return ['']
+def generic(prefix, environ):
+    """
+    Generic Pinba handler.
 
-    tracker = environ['PATH_INFO'][prefix_size:]
+    The timer is in `t` and other parameters are considered to be
+    additional tags. The tracker name is the end of the path.
+    """
+    tracker = environ["PATH_INFO"][len(prefix):]
     tags = parse_qs(environ['QUERY_STRING'])
     try:
         timer = float(tags.pop('t')[0])
@@ -77,10 +80,22 @@ def app(environ, start_response):
     except KeyError:
         timer = 0.0
     except ValueError:
-        start_response('400 Invalid Timer', [('Content-Length', 0)])
-        return ['']
-
+        raise InvalidTimer()
     pinba(environ['HTTP_HOST'], tracker, timer, tags)
 
-    start_response('200 OK', [('Content-Length', 0)])
+handlers = {
+    "/track/": generic,
+}
+
+def app(environ, start_response):
+    for h in handlers:
+        if environ['PATH_INFO'].startswith(h):
+            try:
+                handlers[h](h, environ)
+            except InvalidTimer:
+                start_response('400 Invalid Timer', [('Content-Length', 0)])
+                return ['']
+            start_response('200 OK', [('Content-Length', 0)])
+            return ['']
+    start_response('404 Not Found', [('Content-Length', 0)])
     return ['']
