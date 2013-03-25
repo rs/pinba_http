@@ -15,26 +15,18 @@ udpsock = socket(AF_INET, SOCK_DGRAM)
 hostname = gethostname()
 prefix_size = len(PATH_PREFIX)
 
-def app(environ, start_response):
-    if not environ['PATH_INFO'].startswith(PATH_PREFIX):
-        start_response('404 Not Found', [('Content-Length', 0)])
-        return ['']
+def pinba(server_name, tracker, timer, tags):
+    """
+    Send a message to Pinba.
 
-    tracker = environ['PATH_INFO'][prefix_size:]
-    tags = parse_qs(environ['QUERY_STRING'])
-    try:
-        timer = float(tags.pop('t')[0])
-        if timer < 0 or timer > TIMER_MAX: raise ValueError()
-    except KeyError:
-        timer = 0.0
-    except ValueError:
-        start_response('400 Invalid Timer', [('Content-Length', 0)])
-        return ['']
-
-    # Create a default "empty" Pinba request message
+    :param server_name: HTTP server name
+    :param tracker:     tracker name
+    :param timer:       timer value
+    :param tags:        dictionary of tags
+    """
     msg = pinba_pb2.Request()
     msg.hostname = hostname
-    msg.server_name = environ['HTTP_HOST']
+    msg.server_name = server_name
     msg.script_name = tracker
     msg.request_count = 1
     msg.document_size = 0
@@ -71,6 +63,24 @@ def app(environ, start_response):
 
     # Send message to Pinba server
     udpsock.sendto(msg.SerializeToString(), (PINBA_HOST, PINBA_PORT))
+
+def app(environ, start_response):
+    if not environ['PATH_INFO'].startswith(PATH_PREFIX):
+        start_response('404 Not Found', [('Content-Length', 0)])
+        return ['']
+
+    tracker = environ['PATH_INFO'][prefix_size:]
+    tags = parse_qs(environ['QUERY_STRING'])
+    try:
+        timer = float(tags.pop('t')[0])
+        if timer < 0 or timer > TIMER_MAX: raise ValueError()
+    except KeyError:
+        timer = 0.0
+    except ValueError:
+        start_response('400 Invalid Timer', [('Content-Length', 0)])
+        return ['']
+
+    pinba(environ['HTTP_HOST'], tracker, timer, tags)
 
     start_response('200 OK', [('Content-Length', 0)])
     return ['']
