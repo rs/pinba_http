@@ -3,9 +3,10 @@
 from cgi import parse_qs
 from socket import socket, gethostname, AF_INET, SOCK_DGRAM
 from sys import argv
+import re
 import pinba_pb2
 
-VERSION = 1.0
+VERSION = 1.1
 PINBA_HOST = '127.0.0.1'
 PINBA_PORT = 30002
 TIMER_MAX = 10*60
@@ -22,9 +23,12 @@ def pinba(server_name, tracker, timer, tags):
 
     :param server_name: HTTP server name
     :param tracker:     tracker name
-    :param timer:       timer value
+    :param timer:       timer value in seconds
     :param tags:        dictionary of tags
     """
+    if timer < 0 or timer > TIMER_MAX:
+        raise InvalidTimer()
+
     msg = pinba_pb2.Request()
     msg.hostname = hostname
     msg.server_name = server_name
@@ -76,15 +80,57 @@ def generic(prefix, environ):
     tags = parse_qs(environ['QUERY_STRING'])
     try:
         timer = float(tags.pop('t')[0])
-        if timer < 0 or timer > TIMER_MAX: raise ValueError()
     except KeyError:
         timer = 0.0
-    except ValueError:
-        raise InvalidTimer()
     pinba(environ['HTTP_HOST'], tracker, timer, tags)
 
+class Boomerang(object):
+    """
+    Handler for Yahoo Boomerang.
+
+    https://github.com/yahoo/boomerang
+
+    Parameters matching `.?t_` are considered as timestamps, except
+    `t_resp`, `t_page` and `t_done`. Timestamps are transformed into
+    timers by making the difference with `nt_nav_st`.
+    """
+
+    def __init__(self):
+        self.timestamps_re = re.compile("^.?t_")
+
+    def is_timer(self, name):
+        """Is it a timer in milliseconds?"""
+        return name in ["t_resp", "t_page", "t_done"]
+
+    def is_timestamp(self, name):
+        """Is it a timestamp in milliseconds?"""
+        if self.timestamps_re.match(name) and not self.is_timer(name):
+            return True
+        return False
+
+    def __call__(self, prefix, environ):
+        tags = parse_qs(environ['QUERY_STRING'])
+        try:
+            # Start point for other timestamps
+            start = int(tags.pop("nt_nav_st")[0])
+        except KeyError:
+            raise InvalidTimer
+        timers = {}
+        for t in tags.keys()[:]:
+            if self.is_timer(t):
+                timers[t] = int(tags.pop(t)[0])
+            elif self.is_timestamp(t):
+                val = int(tags.pop(t)[0]) - start
+                if val < 0:
+                    continue
+                timers[t] = val
+        for t in timers:
+            pinba(environ['HTTP_HOST'], "boomerang.%s" % t, timers[t]/1000., tags)
+
+# Simple routing
 handlers = {
     "/track/": generic,
+    "/track-boomerang/": Boomerang()
 }
 
 def app(environ, start_response):
