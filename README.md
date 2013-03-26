@@ -30,6 +30,21 @@ Finaly, you can add tags to your timer by adding a query string to your request.
 
 You can then create corresponding report table for the tags you want to query.
 
+Yahoo Boomerang support
+-----------------------
+
+This HTTP interface also provides an endpoint compatible with [Yahoo
+Boomerang](http://lognormal.github.com/boomerang/doc/), and end user
+oriented web performance testing and beaconing. Several timers and
+timestamps are sent in a single request. Each of them is transmitted
+to Pinba.
+
+It is assumed that `nt_nav_st` timestamp is present. It will be used
+as a start point for other timestamps. Everything starting by `t_` or
+`Xt_` is considered as a timestamp, with the exception of `t_resp`,
+`t_page` and `t_done` which are already timers. Everything else is
+considered as a tag and will be attached to each timer.
+
 Installation
 ------------
 
